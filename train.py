@@ -30,13 +30,20 @@ def detection_collate(batch):
 
 
 class Trainer(object):
+    """
+    Main Class Object representing the training process.
+    """
     def __init__(self, weight_path=None,
                  resume=False,
                  gpu_id=0,
                  accumulate=1,
                  fp_16=False):
+
+        # PYTHON HASH SEED
         init_seeds(0)
-        self.fp_16 = fp_16
+
+        # device
+        self.fp_16:bool = fp_16
         self.device = gpu.select_device(gpu_id)
         self.start_epoch = 0
         self.best_mAP = 0.0
@@ -315,47 +322,71 @@ class Trainer(object):
 
 
 if __name__ == "__main__":
+
+    # Main executable
+    # Allow global logger/writer access.
     global logger, writer
+
+    # Parsing main train.py executable arguments:
     parser = argparse.ArgumentParser()
+
+    # Path to pretrained weight file, default to mobilenetv2 (CPU?). Can also use darknet53 (GPU?).
     parser.add_argument(
         "--weight_path",
         type=str,
         default="weight/mobilenetv2.pth",
         help="weight file path",
     )  # weight/darknet53_448.weights
+
+    # Resume training boolean flag.... Should really default to True. Changed to default to true.
     parser.add_argument(
         "--resume",
         action="store_true",
-        default=False,
+        default=True,
         help="resume training flag",
     )
+
+    # Training hardware ID. Default to use CPU...
     parser.add_argument(
         "--gpu_id",
         type=int,
         default=-1,
         help="whither use GPU(0) or CPU(-1)",
     )
+
+    # Default log path is ./log
     parser.add_argument("--log_path", type=str, default="log/", help="log path")
+
+    # Accumulate TWO batches before optimizing? This is a hyper parameter.
     parser.add_argument(
         "--accumulate",
         type=int,
         default=2,
         help="batches to accumulate before optimizing",
     )
+
+    # Flag to use FP16 GPU precision.
     parser.add_argument(
         "--fp_16",
         type=bool,
         default=False,
         help="whither to use fp16 precision",
     )
+
+    # Parse the arugments into Option objects.
     opt = parser.parse_args()
+
+    # Instantiate Tensorboard summary writer to even folder.
     writer = SummaryWriter(logdir=opt.log_path + "/event")
+
+    # Initialize python logger.
     logger = Logger(
         log_file_name=opt.log_path + "/log.txt",
         log_level=logging.DEBUG,
         logger_name="YOLOv4",
     ).get_log()
 
+    # Instantiate the trainer and start the training process.
     Trainer(
         weight_path=opt.weight_path,
         resume=opt.resume,

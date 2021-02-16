@@ -1,33 +1,46 @@
+from __future__ import annotations
 import torch
 
-
-def select_device(id):
+def select_device(id: int) -> torch.device:
+    """
+    Return torch.device reference for the device CPU or GPU chosen to carry out the analyses.
+    """
     force_cpu = False
     if id == -1:
         force_cpu = True
-    cuda = False if force_cpu else torch.cuda.is_available()
-    device = torch.device("cuda:{}".format(id) if cuda else "cpu")
+
+    # Detect cuda
+    cuda: bool = False if force_cpu else torch.cuda.is_available()
+
+    # Torch Device Class Object
+    device: torch.device = torch.device("cuda:{}".format(id) if cuda else "cpu")
 
     if not cuda:
         print("Using CPU")
     if cuda:
-        c = 1024 ** 2  # bytes to MB
-        ng = torch.cuda.device_count()
-        x = [torch.cuda.get_device_properties(i) for i in range(ng)]
+        # bytes to MB unit conversion.
+        conversion_factor = 1024 ** 2
+
+        # N of GPUs
+        n_GPUs = torch.cuda.device_count()
+
+        # List of cuda device properties class
+        # Minor bug fix here to not use just device 0 but whatever user specifies.
+        x: list = [torch.cuda.get_device_properties(i) for i in range(n_GPUs)]
         print(
-            "Using CUDA device0 _CudaDeviceProperties(name='%s', total_memory=%dMB)"
-            % (x[0].name, x[0].total_memory / c)
+            f"Using CUDA device0 _CudaDeviceProperties(name={x[id].name}, "
+            f"total_memory={x[id].total_memory / conversion_factor}MB)"
         )
-        if ng > 0:
+        if n_GPUs > 0:
             # torch.cuda.set_device(0)  # OPTIONAL: Set GPU ID
-            for i in range(1, ng):
+            for index_GPU in range(1, n_GPUs):
+                memory_MB = x[index_GPU].total_memory / conversion_factor
                 print(
-                    "           device%g _CudaDeviceProperties(name='%s', total_memory=%dMB)"
-                    % (i, x[i].name, x[i].total_memory / c)
+                    f"           device{index_GPU} _CudaDeviceProperties(name='{x[index_GPU].name}', "
+                    f"total_memory={memory_MB}MB)"
                 )
 
     return device
-
 
 if __name__ == "__main__":
     _ = select_device(0)

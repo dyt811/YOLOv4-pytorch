@@ -1,0 +1,5 @@
+# Example Train Command:
+
+python train.py --resume True --gpu_id 0 --fp_16 True
+
+# Default to use the primary GPU (0)
