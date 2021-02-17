@@ -1,3 +1,4 @@
+from __future__ import annotations
 import logging
 import utils.gpu as gpu
 from model.build_model import Build_Model
@@ -12,12 +13,17 @@ import argparse
 from eval.evaluator import *
 from utils.tools import *
 from tensorboardX import SummaryWriter
-import config.yolov4_config as cfg
+
+import config.yolov4_config as cfg   # KEY configuration object.... hardcoded. :(
+
+
 from utils import cosine_lr_scheduler
 from utils.log import Logger
 from apex import amp
 from eval_coco import *
 from eval.cocoapi_evaluator import COCOAPIEvaluator
+import torch
+from pathlib import Path
 
 
 def detection_collate(batch):
@@ -33,28 +39,34 @@ class Trainer(object):
     """
     Main Class Object representing the training process.
     """
+
     def __init__(self, weight_path=None,
-                 resume=False,
-                 gpu_id=0,
-                 accumulate=1,
-                 fp_16=False):
+                 resume: bool =False,
+                 gpu_id: int=0,
+                 accumulate: bool = True,
+                 fp_16: bool=False):
 
         # PYTHON HASH SEED
         init_seeds(0)
 
         # device
-        self.fp_16:bool = fp_16
-        self.device = gpu.select_device(gpu_id)
-        self.start_epoch = 0
-        self.best_mAP = 0.0
-        self.accumulate = accumulate
-        self.weight_path = weight_path
-        self.multi_scale_train = cfg.TRAIN["MULTI_SCALE_TRAIN"]
+        self.fp_16: bool = fp_16
+        self.device: torch.device = gpu.select_device(gpu_id)
+        self.start_epoch: int = 0
+        self.best_mAP: float = 0.0  # not sure why this is necessary...
+        self.accumulate: bool = accumulate
+        self.weight_path: Path = weight_path
+        self.multi_scale_train: bool = cfg.TRAIN["MULTI_SCALE_TRAIN"]
+        # Show attention modification?
         self.showatt = cfg.TRAIN["showatt"]
+
+        # Multi-scale training status
         if self.multi_scale_train:
             print("Using multi scales training")
         else:
-            print("train img size is {}".format(cfg.TRAIN["TRAIN_IMG_SIZE"]))
+            print(f"train img size is {cfg.TRAIN['TRAIN_IMG_SIZE']}")
+
+        # Build Dataset using helper function.
         self.train_dataset = data.Build_Dataset(
             anno_file_type="train", img_size=cfg.TRAIN["TRAIN_IMG_SIZE"]
         )
@@ -169,13 +181,13 @@ class Trainer(object):
             mloss = torch.zeros(4)
             logger.info("===Epoch:[{}/{}]===".format(epoch, self.epochs))
             for i, (
-                imgs,
-                label_sbbox,
-                label_mbbox,
-                label_lbbox,
-                sbboxes,
-                mbboxes,
-                lbboxes,
+                    imgs,
+                    label_sbbox,
+                    label_mbbox,
+                    label_lbbox,
+                    sbboxes,
+                    mbboxes,
+                    lbboxes,
             ) in enumerate(self.train_dataloader):
                 self.scheduler.step(
                     len(self.train_dataloader)
@@ -223,7 +235,6 @@ class Trainer(object):
 
                 # Print batch results
                 if i % 10 == 0:
-
                     logger.info(
                         "  === Epoch:[{:3}/{}],step:[{:3}/{}],img_size:[{:3}],total_loss:{:.4f}|loss_ciou:{:.4f}|loss_conf:{:.4f}|loss_cls:{:.4f}|lr:{:.4f}".format(
                             epoch,
@@ -269,12 +280,12 @@ class Trainer(object):
                 # multi-sclae training (320-608 pixels) every 10 batches
                 if self.multi_scale_train and (i + 1) % 10 == 0:
                     self.train_dataset.img_size = (
-                        random.choice(range(10, 20)) * 32
+                            random.choice(range(10, 20)) * 32
                     )
 
             if (
-                cfg.TRAIN["DATA_TYPE"] == "VOC"
-                or cfg.TRAIN["DATA_TYPE"] == "Customer"
+                    cfg.TRAIN["DATA_TYPE"] == "VOC"
+                    or cfg.TRAIN["DATA_TYPE"] == "Customer"
             ):
                 mAP = 0.0
                 if epoch >= self.eval_epoch:
@@ -322,7 +333,6 @@ class Trainer(object):
 
 
 if __name__ == "__main__":
-
     # Main executable
     # Allow global logger/writer access.
     global logger, writer

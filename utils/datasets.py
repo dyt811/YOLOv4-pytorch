@@ -7,6 +7,7 @@ sys.path.append("../utils")
 import torch
 from torch.utils.data import Dataset, DataLoader
 import config.yolov4_config as cfg
+from typing import List
 import cv2
 import numpy as np
 import random
@@ -19,17 +20,44 @@ import utils.tools as tools
 
 
 class Build_Dataset(Dataset):
+    """
+    Class represents the dataset for PyTorch, an extended class for PyTorch dataset
+    """
+
     def __init__(self, anno_file_type, img_size=416):
-        self.img_size = img_size  # For Multi-training
+
+        # Default image size for multiscale training
+        # Smallest side length.
+        self.img_size: int = img_size  # For Multi-training
+
+        # Load Class Definition depending on if they are VOC/COCO or customer's definition, specified in the
+        # yolov4_config class.
+
+        # This is defined as a dictionary of number and classes.
+        #  {
+        #     "NUM": 3,
+        #     "CLASSES": [
+        #         "aeroplane",
+        #         "bicycle",
+        #         "bird",
+        #     ],
+        # }
         if cfg.TRAIN["DATA_TYPE"] == "VOC":
             self.classes = cfg.VOC_DATA["CLASSES"]
         elif cfg.TRAIN["DATA_TYPE"] == "COCO":
             self.classes = cfg.COCO_DATA["CLASSES"]
         else:
             self.classes = cfg.Customer_DATA["CLASSES"]
-        self.num_classes = len(self.classes)
-        self.class_to_id = dict(zip(self.classes, range(self.num_classes)))
-        self.__annotations = self.__load_annotations(anno_file_type)
+
+        # Update the number of classes in existence based on the definition length.
+        self.num_classes: int = len(self.classes)
+
+        # Assign the class name to ID number.
+        self.class_to_id: dict = dict(zip(self.classes, range(self.num_classes)))
+
+        # Load annotation data based on annotation file type.
+        # really just a list of text file path
+        self.__annotations: List[str] = self.__load_annotations(anno_file_type)
 
     def __len__(self):
         return len(self.__annotations)
@@ -76,18 +104,28 @@ class Build_Dataset(Dataset):
             lbboxes,
         )
 
-    def __load_annotations(self, anno_type):
+    def __load_annotations(self, anno_type: str) -> List[str]:
 
+        # todo: this should be written as enum.
         assert anno_type in [
             "train",
             "test",
         ], "You must choice one of the 'train' or 'test' for anno_type parameter"
-        anno_path = os.path.join(
+
+        # The annotation file must end with "_annotation.txt"
+        path_file_annotation = os.path.join(
             cfg.DATA_PATH, anno_type + "_annotation.txt"
         )
-        with open(anno_path, "r") as f:
-            annotations = list(filter(lambda x: len(x) > 0, f.readlines()))
-        assert len(annotations) > 0, "No images found in {}".format(anno_path)
+
+        # Process the annotation file,
+        with open(path_file_annotation, "r") as f:
+            # Filter for any non empty lines.
+            annotations: list = list(
+                filter(lambda x: len(x) > 0, f.readlines())
+            )
+
+        # Ensure that final annotation has at least one image in it.
+        assert len(annotations) > 0, f"No images found in {path_file_annotation}"
 
         return annotations
 

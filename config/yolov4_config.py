@@ -1,8 +1,11 @@
 # coding=utf-8
 # project
+
+# This is a centralized configuration module.
 import os.path as osp
 PROJECT_PATH = osp.abspath(osp.join(osp.dirname(__file__), '..'))
 
+# Default data folder to the current folder is in the /data
 DATA_PATH = osp.join(PROJECT_PATH, 'data')
 
 
